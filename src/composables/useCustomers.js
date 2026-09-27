@@ -12,8 +12,8 @@ export function useCustomers() {
             phone: customer.phone,
             smokingPreference: customer.smoking_preference,
             notes: customer.notes,
-            stayCount: 0,
-            lastStayedDate: ""
+            stayCount: customer.stay_count,
+            lastStayedDate: customer.last_stayed_date
         }));
 
     }
@@ -45,43 +45,77 @@ export function useCustomers() {
     // );
 
 
-    function addCustomer(customerData) {
+    async function addCustomer(customerData) {
 
-        const newCustomer = {
-            id: nextId++,
-            name: customerData.name,
-            phone: customerData.phone,
-            lastStayedDate: customerData.lastStayedDate,
-            stayCount: customerData.stayCount,
-            smokingPreference: customerData.smokingPreference,
-            notes: customerData.notes
-        };
-
-        customers.value.push(newCustomer);
+        const response = await fetch("http://127.0.0.1:8000/customers", {
+            method: "POST", 
+            headers: {
+                "Content-Type": "application/json"
+            }, 
+            body: JSON.stringify({
+                name: customerData.name,
+                phone: customerData.phone,
+                smoking_preference: customerData.smokingPreference,
+                notes: customerData.notes
+            })
+        });
+        if (response.ok) {
+            await fetchCustomers();
+        }
+        
     }
 
-    function deleteCustomer(id) {
-        customers.value = customers.value.filter((customer) => customer.id !== id)
+    async function deleteCustomer(id) {
+        const response = await fetch(`http://127.0.0.1:8000/customers/${id}`, {
+            method: "DELETE"
+        })
+        if (response.ok) {
+            await fetchCustomers();
+        }
     }
 
 
-    function updateCustomer(id, customerData) {
-        const customer = customers.value.find(
-            (customer) => customer.id === id
-        )
-        customer.name = customerData.name;
-        customer.phone = customerData.phone;
-        customer.lastStayedDate = customerData.lastStayedDate;
-        customer.stayCount = customerData.stayCount;
-        customer.smokingPreference = customerData.smokingPreference;
-        customer.notes = customerData.notes;
-
+    async function updateCustomer(id, customerData) {
+        const response = await fetch(`http://127.0.0.1:8000/customers/${id}`,{
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: customerData.name,
+                phone: customerData.phone,
+                smoking_preference: customerData.smokingPreference,
+                notes: customerData.notes
+        })});
+            if (response.ok) {
+                await fetchCustomers();
+            }
     }
+
+    async function addStay(customerId, stayData) {
+        const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`, 
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    stay_date: stayData.stayDate,
+                    notes: stayData.notes
+                })
+            }
+        );
+        if (response.ok){
+            await fetchCustomers();    
+        }
+    }
+        
 
     return {
         customers,
         addCustomer,
         deleteCustomer,
-        updateCustomer
+        updateCustomer,
+        addStay
     };
 }

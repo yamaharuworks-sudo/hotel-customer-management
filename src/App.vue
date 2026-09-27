@@ -15,9 +15,14 @@ const searchQuery = ref("");
 const smokingPreference = ref("none");
 const notes = ref("");
 
+// 宿泊登録用
+const stayCustomerId = ref(null);
+const stayDate = ref("");
+const stayNotes = ref("");
+
 const sortBy = ref("date");
 
-const {customers, addCustomer, deleteCustomer, updateCustomer} = useCustomers();
+const {customers, addCustomer, deleteCustomer, updateCustomer, addStay} = useCustomers();
 
 
 function startEdit(customer) {
@@ -65,6 +70,16 @@ function handleSubmit() {
   resetForm();
 }
 
+async function handleStaySubmit() {
+  await addStay(stayCustomerId.value, {
+    stayDate: stayDate.value,
+    notes: stayNotes.value
+  });
+  stayDate.value = "";
+  stayNotes.value = "";
+  stayCustomerId.value = null;
+}
+
 function resetForm() {
   newName.value = "";
   newPhone.value = "";
@@ -91,6 +106,10 @@ const filteredCustomers = computed(() => {
   }
   });
 
+function registerStay(customerId) {
+  stayCustomerId.value = customerId;
+  console.log(stayCustomerId.value);
+}
 </script>
 
 
@@ -115,7 +134,15 @@ const filteredCustomers = computed(() => {
     <CustomerList 
       :filtered-customers="filteredCustomers"
       @delete="deleteCustomer"
-      @edit="startEdit"/>
+      @edit="startEdit"
+      @register-stay="registerStay"/>
+
+    <form @submit.prevent="handleStaySubmit" 
+      v-if="stayCustomerId !== null">
+      <input v-model="stayDate" type="date" >
+      <textarea v-model="stayNotes"></textarea>
+      <button type="submit">登録</button>
+    </form> 
 
     <h2>新規顧客登録</h2>
 

@@ -3,7 +3,7 @@
 const props = defineProps({
     filteredCustomers: Array
 });
-const emit = defineEmits(["delete", "edit"]);
+const emit = defineEmits(["delete", "edit", "register-stay"]);
 
 
 function confirmDelete(id) {
@@ -37,6 +37,8 @@ function confirmDelete(id) {
             </div>
             
             <div class="customer-actions">
+                <button @click="emit('register-stay', customer.id)">宿泊登録</button>
+                <button>宿泊履歴</button>
                 <button class="edit-button" @click="emit('edit', customer)">編集</button>
                 <button class="delete-button" @click="confirmDelete(customer.id)">削除</button>
             </div>
