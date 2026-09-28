@@ -46,22 +46,31 @@ export function useCustomers() {
 
 
     async function addCustomer(customerData) {
-
-        const response = await fetch("http://127.0.0.1:8000/customers", {
-            method: "POST", 
-            headers: {
-                "Content-Type": "application/json"
-            }, 
-            body: JSON.stringify({
-                name: customerData.name,
-                phone: customerData.phone,
-                smoking_preference: customerData.smokingPreference,
-                notes: customerData.notes
-            })
-        });
-        if (response.ok) {
-            await fetchCustomers();
+        try {
+            const response = await fetch("http://127.0.0.1:8000/customers", {
+                method: "POST", 
+                headers: {
+                    "Content-Type": "application/json"
+                }, 
+                body: JSON.stringify({
+                    name: customerData.name,
+                    phone: customerData.phone,
+                    smoking_preference: customerData.smokingPreference,
+                    notes: customerData.notes
+                })
+            }); 
+            if (response.ok) {
+                await fetchCustomers();
+                return true;
+            }
+        
+            return false;
+        } catch (error) {
+            console.error("顧客登録エラー", error);
+            return false;
         }
+        
+        
         
     }
 
@@ -74,22 +83,39 @@ export function useCustomers() {
         }
     }
 
+    async function deleteStay(stayId) {
+        const response = await fetch(`http://127.0.0.1:8000/stays/${stayId}`, {
+            method: "DELETE"
+        })
+        if (response.ok) {
+            await fetchCustomers();
+        }
+    }
+
 
     async function updateCustomer(id, customerData) {
-        const response = await fetch(`http://127.0.0.1:8000/customers/${id}`,{
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                name: customerData.name,
-                phone: customerData.phone,
-                smoking_preference: customerData.smokingPreference,
-                notes: customerData.notes
-        })});
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/customers/${id}`,{
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name: customerData.name,
+                    phone: customerData.phone,
+                    smoking_preference: customerData.smokingPreference,
+                    notes: customerData.notes
+            })});
             if (response.ok) {
                 await fetchCustomers();
+                return true;
             }
+            return false;
+        } catch (error) {
+            console.error("顧客更新エラー", error);
+            return false;
+        }
+        
     }
 
     async function addStay(customerId, stayData) {
@@ -109,6 +135,12 @@ export function useCustomers() {
             await fetchCustomers();    
         }
     }
+    
+    async function fetchStays(customerId) {
+        const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`);
+        const data = await response.json();
+        return data;
+    }
         
 
     return {
@@ -116,6 +148,8 @@ export function useCustomers() {
         addCustomer,
         deleteCustomer,
         updateCustomer,
-        addStay
+        addStay,
+        fetchStays,
+        deleteStay
     };
 }

@@ -101,6 +101,9 @@ def create_customer(customer: CustomerCreate):
 def delete_customer(customer_id: int):
     connection = sqlite3.connect("hotel.db")
     cursor = connection.cursor()
+    cursor.execute("""
+        DELETE FROM stays WHERE customer_id = ?
+    """, (customer_id,))
     cursor.execute(""" 
         DELETE FROM customers WHERE id = ?
         """, (customer_id,)
@@ -153,9 +156,23 @@ def get_stays(customer_id: int):
     connection.row_factory = sqlite3.Row
     cursor = connection.cursor()
     cursor.execute("""
-        SELECT * FROM stays WHERE customer_id = ?
+        SELECT * FROM stays WHERE customer_id = ? ORDER BY stay_date DESC
         """, (customer_id,)
     )
     stays = cursor.fetchall()
     connection.close()
     return [dict(stay) for stay in stays]
+
+
+# 間違った日付で宿泊登録してしまった場合に、履歴を1件だけ削除
+@app.delete("/stays/{stay_id}")
+def delete_stay(stay_id: int):
+    connection = sqlite3.connect("hotel.db")
+    cursor = connection.cursor()
+    cursor.execute("""
+        DELETE FROM stays WHERE id = ?
+    """, (stay_id,)
+    )
+    connection.commit()
+    connection.close()
+    return {"message": "stay deleted"}

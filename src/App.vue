@@ -6,14 +6,13 @@ import { useCustomers } from "./composables/useCustomers.js";
 
 const newName = ref("");
 const newPhone = ref("");
-const lastStayedDate = ref("");
-const stayCount = ref(0);
 const nameError = ref("");
 const phoneError = ref("");
 const editingId = ref(null);
 const searchQuery = ref("");
 const smokingPreference = ref("none");
 const notes = ref("");
+const submitError = ref("");
 
 // 宿泊登録用
 const stayCustomerId = ref(null);
@@ -22,21 +21,30 @@ const stayNotes = ref("");
 
 const sortBy = ref("date");
 
-const {customers, addCustomer, deleteCustomer, updateCustomer, addStay} = useCustomers();
+// 宿泊履歴
+const stayHistory = ref([]);
+const historyCustomerId = ref(null);
+
+const {customers, 
+        addCustomer, 
+        deleteCustomer, 
+        updateCustomer, 
+        addStay, 
+        fetchStays,
+        deleteStay
+      } = useCustomers();
 
 
 function startEdit(customer) {
   editingId.value = customer.id;
   newName.value = customer.name;
   newPhone.value = customer.phone;
-  lastStayedDate.value = customer.lastStayedDate;
-  stayCount.value = customer.stayCount;
   smokingPreference.value = customer.smokingPreference;
   notes.value = customer.notes;
 }
 
 
-function handleSubmit() {
+async function handleSubmit() {
   nameError.value = "";
   phoneError.value = "";
 
@@ -56,18 +64,22 @@ function handleSubmit() {
   const customerData = {
       name: newName.value,
       phone: newPhone.value,
-      lastStayedDate: lastStayedDate.value,
-      stayCount: stayCount.value,
       smokingPreference: smokingPreference.value,
       notes: notes.value
     }
 
+  let success = false;
   if (editingId.value === null) {
-    addCustomer(customerData);
+    success = await addCustomer(customerData);
   } else {
-    updateCustomer(editingId.value, customerData);
+    success = await updateCustomer(editingId.value, customerData);
   }
-  resetForm();
+  if (success) {
+    submitError.value = "";
+    resetForm();
+  } else {
+    submitError.value = "保存に失敗しました。もう一度お試しください。";
+  }
 }
 
 async function handleStaySubmit() {
@@ -83,8 +95,6 @@ async function handleStaySubmit() {
 function resetForm() {
   newName.value = "";
   newPhone.value = "";
-  lastStayedDate.value = "";
-  stayCount.value = 0;
   editingId.value = null;
   nameError.value = "";
   phoneError.value = "";
@@ -110,6 +120,28 @@ function registerStay(customerId) {
   stayCustomerId.value = customerId;
   console.log(stayCustomerId.value);
 }
+
+async function showStayHistory(customerId) {
+  stayHistory.value = await fetchStays(customerId);
+  historyCustomerId.value = customerId;
+}
+
+
+function closeStayHistory() {
+  historyCustomerId.value = null;
+  stayHistory.value = [];
+} 
+
+async function handleDeleteStay(stayId) {
+  const confirmed = window.confirm("この宿泊履歴を削除しますか？");
+  if (!confirmed) return;
+  
+  await deleteStay(stayId);
+  stayHistory.value = await fetchStays(historyCustomerId.value);
+
+}
+
+
 </script>
 
 
@@ -129,13 +161,29 @@ function registerStay(customerId) {
         <option value="count">宿泊回数が多い順</option>
       </select>
     </div>
+
+    <div v-if="historyCustomerId !== null">
+      <h3>宿泊履歴</h3>
+      <div v-if="stayHistory.length > 0 ">
+        
+        <div v-for="stay in stayHistory" :key="stay.id">
+          <p>宿泊日： {{ stay.stay_date }}</p>
+          <p>備考： {{ stay.notes }}</p>
+          <button @click="handleDeleteStay(stay.id)">削除</button>
+        </div>
+      </div>
+      <p v-else>宿泊履歴はありません</p>
+      <button @click="closeStayHistory">閉じる</button>
+    </div>
+    
     
     
     <CustomerList 
       :filtered-customers="filteredCustomers"
       @delete="deleteCustomer"
       @edit="startEdit"
-      @register-stay="registerStay"/>
+      @register-stay="registerStay"
+      @show-history="showStayHistory"/>
 
     <form @submit.prevent="handleStaySubmit" 
       v-if="stayCustomerId !== null">
@@ -149,8 +197,6 @@ function registerStay(customerId) {
     <CustomerForm 
     :new-name="newName"
     :new-phone="newPhone"
-    :last-stayed-date="lastStayedDate"
-    :stay-count="stayCount"
     :editing-id="editingId"
     :name-error="nameError"
     :phone-error="phoneError"
@@ -158,15 +204,15 @@ function registerStay(customerId) {
     :notes="notes"
     @update-name="newName=$event"
     @update-phone="newPhone=$event"
-    @update-last-stayed-date="lastStayedDate=$event"
-    @update-stay-count="stayCount=$event"
     @submit="handleSubmit"
     @clear-name-error="nameError=''"
     @clear-phone-error="phoneError=''"
     @cancel="resetForm"
     @update-smoking-preference="smokingPreference = $event"
-    @update-notes="notes = $event"/>
+    @update-notes="notes = $event"
+    />
   </main>
+  <p v-if="submitError">{{ submitError }}</p>
 </template>
 
 
