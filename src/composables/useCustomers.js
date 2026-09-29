@@ -61,14 +61,26 @@ export function useCustomers() {
             }); 
             if (response.ok) {
                 await fetchCustomers();
-                return true;
+                return {
+                    success: true,
+                    errorType: null,
+                    message: ""
+                };
             }
         
-            return false;
         } catch (error) {
             console.error("顧客登録エラー", error);
-            return false;
+            return {
+                success: false,
+                errorType: "network",
+                message: "サーバーに接続できません。ネットワーク接続やサーバーPCの状態を確認し、改善しない場合は管理者にお問い合わせください。"
+            };
         }
+        return {
+            success: false,
+            errorType: "server",
+            message: "保存できませんでした。管理者にお問い合わせください。"
+        };
         
         
         
@@ -84,12 +96,34 @@ export function useCustomers() {
     }
 
     async function deleteStay(stayId) {
-        const response = await fetch(`http://127.0.0.1:8000/stays/${stayId}`, {
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/stays/${stayId}`, {
             method: "DELETE"
-        })
-        if (response.ok) {
-            await fetchCustomers();
+            })
+            if (response.ok) {
+                await fetchCustomers();
+                return {
+                    success: true,
+                    errorType: null,
+                    message: ""
+                }
+            }
+        } catch (error) {
+            console.log("宿泊履歴削除エラー", error);
+            return {
+                success: false,
+                errorType: "network",
+                message: "サーバーに接続できません。"
+            };
+
         }
+        return {    
+            success: false,
+            errorType: "server",
+            message: "宿泊履歴を削除できませんでした。"
+        };
+        
+        
     }
 
 
@@ -108,18 +142,31 @@ export function useCustomers() {
             })});
             if (response.ok) {
                 await fetchCustomers();
-                return true;
+                return {
+                    success: true,
+                    errorType: null,
+                    message: ""
+                };
             }
-            return false;
         } catch (error) {
             console.error("顧客更新エラー", error);
-            return false;
+            return {
+                success: false,
+                errorType: "network",
+                message: "サーバーに接続できません。ネットワーク接続を確認し、改善しない場合は管理者にお問い合わせください。"
+            };
+        }
+        return {
+            success: false,
+            errorType: "server",
+            message: "更新できませんでした。管理者にお問い合わせください。"
         }
         
     }
 
     async function addStay(customerId, stayData) {
-        const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`, 
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`, 
             {
                 method: "POST",
                 headers: {
@@ -130,10 +177,30 @@ export function useCustomers() {
                     notes: stayData.notes
                 })
             }
-        );
-        if (response.ok){
-            await fetchCustomers();    
+            );
+            if (response.ok){
+                await fetchCustomers();
+                return {
+                    success: true,
+                    errorType: null,
+                    message: ""
+                };
+            }
+        } catch(error) {
+            console.log("宿泊登録エラー", error);
+            return {
+                success: false,
+                errorType: "network",
+                message: "サーバーに接続できません。ネットワーク接続を確認してください。"
+            }
+
         }
+        return {
+            success: false,
+            errorType: "server",
+            message: "宿泊登録に失敗しました。管理者にお問い合わせください。"
+        }
+        
     }
     
     async function fetchStays(customerId) {

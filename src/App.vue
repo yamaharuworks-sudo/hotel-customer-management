@@ -13,6 +13,8 @@ const searchQuery = ref("");
 const smokingPreference = ref("none");
 const notes = ref("");
 const submitError = ref("");
+const staySubmitError = ref("");
+const stayDeleteError = ref("");
 
 // 宿泊登録用
 const stayCustomerId = ref(null);
@@ -24,6 +26,7 @@ const sortBy = ref("date");
 // 宿泊履歴
 const stayHistory = ref([]);
 const historyCustomerId = ref(null);
+
 
 const {customers, 
         addCustomer, 
@@ -47,6 +50,7 @@ function startEdit(customer) {
 async function handleSubmit() {
   nameError.value = "";
   phoneError.value = "";
+  submitError.value = "";
 
   let hasError = false;
   if (newName.value.trim() === "") {
@@ -68,30 +72,38 @@ async function handleSubmit() {
       notes: notes.value
     }
 
-  let success = false;
+  let result;
   if (editingId.value === null) {
-    success = await addCustomer(customerData);
+    result = await addCustomer(customerData);
   } else {
-    success = await updateCustomer(editingId.value, customerData);
+    result = await updateCustomer(editingId.value, customerData);
   }
-  if (success) {
+  if (result.success) {
     submitError.value = "";
     resetForm();
   } else {
-    submitError.value = "保存に失敗しました。もう一度お試しください。";
+    submitError.value = result.message;
   }
 }
 
 async function handleStaySubmit() {
-  await addStay(stayCustomerId.value, {
+  staySubmitError.value = "";
+
+  const result = await addStay(stayCustomerId.value, {
     stayDate: stayDate.value,
     notes: stayNotes.value
   });
-  stayDate.value = "";
-  stayNotes.value = "";
-  stayCustomerId.value = null;
+  if (result.success) {
+    stayDate.value = "";
+    stayNotes.value = "";
+    stayCustomerId.value = null;
+  } else {
+    staySubmitError.value = result.message;
+  }
+  
 }
 
+// 顧客情報の更新をキャンセル
 function resetForm() {
   newName.value = "";
   newPhone.value = "";
@@ -102,6 +114,13 @@ function resetForm() {
   smokingPreference.value = "none";
 }
 
+// 宿泊登録をキャンセル
+function cancelStay() {
+  stayCustomerId.value = null;
+  stayDate.value = "";
+  stayNotes.value = "";
+  staySubmitError.value = "";
+}
 
 const filteredCustomers = computed(() => {
   const query = searchQuery.value.trim();
@@ -118,16 +137,21 @@ const filteredCustomers = computed(() => {
 
 function registerStay(customerId) {
   stayCustomerId.value = customerId;
+  stayDate.value = "";
+  stayNotes.value = "";
+  staySubmitError.value = "";
   console.log(stayCustomerId.value);
 }
 
 async function showStayHistory(customerId) {
+  stayDeleteError.value = "";
   stayHistory.value = await fetchStays(customerId);
   historyCustomerId.value = customerId;
 }
 
 
 function closeStayHistory() {
+  stayDeleteError.value = "";
   historyCustomerId.value = null;
   stayHistory.value = [];
 } 
@@ -136,8 +160,13 @@ async function handleDeleteStay(stayId) {
   const confirmed = window.confirm("この宿泊履歴を削除しますか？");
   if (!confirmed) return;
   
-  await deleteStay(stayId);
-  stayHistory.value = await fetchStays(historyCustomerId.value);
+  const result =  await deleteStay(stayId);
+  if (result.success) {
+    stayDeleteError = "";
+    stayHistory.value = await fetchStays(historyCustomerId.value);
+  } else {
+    stayDeleteError.value = result.message;
+  }
 
 }
 
@@ -170,6 +199,7 @@ async function handleDeleteStay(stayId) {
           <p>宿泊日： {{ stay.stay_date }}</p>
           <p>備考： {{ stay.notes }}</p>
           <button @click="handleDeleteStay(stay.id)">削除</button>
+          <p v-if="stayDeleteError">{{ stayDeleteError }}</p>
         </div>
       </div>
       <p v-else>宿泊履歴はありません</p>
@@ -189,7 +219,10 @@ async function handleDeleteStay(stayId) {
       v-if="stayCustomerId !== null">
       <input v-model="stayDate" type="date" >
       <textarea v-model="stayNotes"></textarea>
+      <button type="button" @click="cancelStay">キャンセル</button>
       <button type="submit">登録</button>
+      <p v-if="staySubmitError">{{ staySubmitError }}</p>
+
     </form> 
 
     <h2>新規顧客登録</h2>
