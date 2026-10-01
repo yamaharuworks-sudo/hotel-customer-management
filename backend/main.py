@@ -1,16 +1,39 @@
 from fastapi import FastAPI
 import sqlite3
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
+import re
+from datetime import date
 
 class CustomerCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=50)
     phone: str
     smoking_preference: str
     notes: str
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value):
+        if value.strip() == "":
+            raise ValueError("氏名を入力してください")
+        return value.strip()
+    
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value):
+        if value.strip() == "":
+            raise ValueError("電話番号を入力してください")
+        elif not re.fullmatch(r"[0-9-]+", value):
+            raise ValueError("電話番号は数字とハイフンのみで入力してください")
+        
+        digits_only = value.replace("-","")   
+        if len(digits_only) != 10 and len(digits_only) != 11:
+            raise ValueError("10桁または11桁の数字を入力してください")
+        
+        return value.strip()
+
 class StayCreate(BaseModel):
-    stay_date: str
+    stay_date: date
     notes: str
 
 app = FastAPI()
@@ -143,7 +166,7 @@ def create_stay(customer_id: int, stay: StayCreate):
             stay_date,
             notes
         ) VALUES(?, ?, ?)
-    """, (customer_id, stay.stay_date, stay.notes)
+    """, (customer_id, stay.stay_date.isoformat(), stay.notes)
     )
     connection.commit()
     connection.close()

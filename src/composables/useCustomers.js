@@ -87,12 +87,32 @@ export function useCustomers() {
     }
 
     async function deleteCustomer(id) {
-        const response = await fetch(`http://127.0.0.1:8000/customers/${id}`, {
-            method: "DELETE"
-        })
-        if (response.ok) {
-            await fetchCustomers();
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/customers/${id}`, {
+                method: "DELETE"
+            })
+            if (response.ok) {
+                await fetchCustomers();
+                return {
+                    success: true,
+                    errorType: null,
+                    message: ""
+                }
+            }
+        } catch (error) {
+            console.log("顧客削除エラー", error);
+            return {
+                    success: false,
+                    errorType: "network",
+                    message: "顧客を削除できませんでした。管理者にお問い合わせください。"
+            }
         }
+        return {
+                success: false,
+                errorType: "server",
+                message: "サーバーに接続できません。ネットワーク接続を確認してください。"
+        }
+        
     }
 
     async function deleteStay(stayId) {
@@ -204,9 +224,33 @@ export function useCustomers() {
     }
     
     async function fetchStays(customerId) {
-        const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`);
-        const data = await response.json();
-        return data;
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    success: true,
+                    errorType: null,
+                    message: "",
+                    data: data
+                }
+            }
+        } catch(error) {
+            console.log(error);
+            return {
+                success: false,
+                errorType: "network",
+                message: "サーバーに接続できません。",
+                data: []
+            }
+        }
+        return {
+            success: false,
+            errorType: "server",
+            message: "宿泊履歴を取得できませんでした。",
+            data: [] 
+        }
     }
         
 

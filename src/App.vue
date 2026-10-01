@@ -12,9 +12,13 @@ const editingId = ref(null);
 const searchQuery = ref("");
 const smokingPreference = ref("none");
 const notes = ref("");
+
+// エラーハンドリング用
 const submitError = ref("");
 const staySubmitError = ref("");
 const stayDeleteError = ref("");
+const customerDeleteError = ref("");
+const stayFetchError = ref("");
 
 // 宿泊登録用
 const stayCustomerId = ref(null);
@@ -53,12 +57,23 @@ async function handleSubmit() {
   submitError.value = "";
 
   let hasError = false;
+  let digitsOnly = newPhone.value.replaceAll("-","");
+
   if (newName.value.trim() === "") {
     nameError.value = "氏名を入力してください";
+    hasError = true;
+  } else if (newName.value.trim().length > 50) {
+    nameError.value = "氏名は50文字以内で入力してください";
     hasError = true;
   }
   if (newPhone.value.trim() === "") {
     phoneError.value = "電話番号を入力してください";
+    hasError = true;
+  } else if (!/^[0-9-]+$/.test(newPhone.value)) {
+    phoneError.value = "番号とハイフンのみ入力してください";
+    hasError = true;
+  } else if (digitsOnly.length !== 11 && digitsOnly.length !== 10 ) {
+    phoneError.value = "10または11桁の数字を入力してください";
     hasError = true;
   }
 
@@ -145,8 +160,17 @@ function registerStay(customerId) {
 
 async function showStayHistory(customerId) {
   stayDeleteError.value = "";
-  stayHistory.value = await fetchStays(customerId);
-  historyCustomerId.value = customerId;
+  stayFetchError.value = "";
+  stayHistory.value = [];
+  historyCustomerId.value = null;
+
+  const result = await fetchStays(customerId);
+  if (result.success) {
+    stayHistory.value = result.data;
+    historyCustomerId.value = customerId;
+  } else {
+    stayFetchError.value = result.message; 
+  }
 }
 
 
@@ -168,6 +192,18 @@ async function handleDeleteStay(stayId) {
     stayDeleteError.value = result.message;
   }
 
+}
+
+async function handleDeleteCustomer(customerId) {
+  const confirmed = window.confirm("この顧客情報を削除しますか？");
+  if (!confirmed) return;
+
+  const result = await deleteCustomer(customerId);
+  if (result.success) {
+    customerDeleteError.value = ""; 
+  } else {
+    customerDeleteError.value = result.message;
+  }
 }
 
 
@@ -210,10 +246,12 @@ async function handleDeleteStay(stayId) {
     
     <CustomerList 
       :filtered-customers="filteredCustomers"
-      @delete="deleteCustomer"
+      @delete="handleDeleteCustomer"
       @edit="startEdit"
       @register-stay="registerStay"
       @show-history="showStayHistory"/>
+    <p v-if="customerDeleteError">{{ customerDeleteError }}</p>
+    <p v-if="stayFetchError"> {{ stayFetchError }}</p>
 
     <form @submit.prevent="handleStaySubmit" 
       v-if="stayCustomerId !== null">

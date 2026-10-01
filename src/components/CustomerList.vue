@@ -6,12 +6,6 @@ const props = defineProps({
 const emit = defineEmits(["delete", "edit", "register-stay", "show-history"]);
 
 
-function confirmDelete(id) {
-    const answer = confirm("この顧客を削除しますか？");
-    if (answer) {
-        emit('delete', id);
-    }
-}
 </script>
 
 
@@ -40,7 +34,7 @@ function confirmDelete(id) {
                 <button @click="emit('register-stay', customer.id)">宿泊登録</button>
                 <button @click="emit('show-history', customer.id)">宿泊履歴</button>
                 <button class="edit-button" @click="emit('edit', customer)">編集</button>
-                <button class="delete-button" @click="confirmDelete(customer.id)">削除</button>
+                <button class="delete-button" @click="emit('delete', customer.id)">削除</button>
             </div>
             
         </li>
