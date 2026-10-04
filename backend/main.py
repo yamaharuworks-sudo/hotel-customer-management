@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 import re
 from datetime import date
+from fastapi import HTTPException
 
 class CustomerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
@@ -123,79 +124,138 @@ def create_customer(customer: CustomerCreate):
 @app.delete("/customers/{customer_id}")
 def delete_customer(customer_id: int):
     connection = sqlite3.connect("hotel.db")
-    cursor = connection.cursor()
-    cursor.execute("""
-        DELETE FROM stays WHERE customer_id = ?
-    """, (customer_id,))
-    cursor.execute(""" 
-        DELETE FROM customers WHERE id = ?
-        """, (customer_id,)
-    )
-    connection.commit()
-    connection.close()
-    return {"message": "customer deleted"}
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            DELETE FROM stays WHERE customer_id = ?
+        """, (customer_id,))
+        cursor.execute(""" 
+            DELETE FROM customers WHERE id = ?
+            """, (customer_id,)
+        )
+        # rowcount = 1 顧客がいた　rowcount = 0 存在しない顧客エラーを出す
+        delete_count = cursor.rowcount
+        if delete_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="存在しない顧客のため削除されませんでした"
+            )
+        connection.commit()
+        return {"message": "customer deleted"}
+    finally:
+        connection.close()
 
 
 @app.put("/customers/{customer_id}")
 def update_customer(customer_id: int, customer: CustomerCreate):
     connection = sqlite3.connect("hotel.db")
-    cursor = connection.cursor()
-    cursor.execute("""
-        UPDATE customers 
-        SET 
-            name = ?,
-            phone = ?,
-            smoking_preference = ?,
-            notes = ?
-        WHERE id = ? """, 
-        (customer.name, customer.phone, customer.smoking_preference, customer.notes, customer_id )
-    )
-    connection.commit()
-    connection.close()
-    return {"message": "customer updated"}
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE customers 
+            SET 
+                name = ?,
+                phone = ?,
+                smoking_preference = ?,
+                notes = ?
+            WHERE id = ? """, 
+            (customer.name, customer.phone, customer.smoking_preference, customer.notes, customer_id )
+        )
+
+        update_count = cursor.rowcount
+        if update_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="存在しない顧客のため更新されませんでした"
+            )
+        connection.commit()
+        return {"message": "customer updated"}
+
+    finally:
+        connection.close()
 
 
 @app.post("/customers/{customer_id}/stays")
 def create_stay(customer_id: int, stay: StayCreate):
     connection = sqlite3.connect("hotel.db")
-    cursor = connection.cursor()
+    try:
+        cursor = connection.cursor()
 
-    cursor.execute("""
-        INSERT INTO stays (
-            customer_id,
-            stay_date,
-            notes
-        ) VALUES(?, ?, ?)
-    """, (customer_id, stay.stay_date.isoformat(), stay.notes)
-    )
-    connection.commit()
-    connection.close()
-    return {"message": "stay created"}
+        # 顧客が存在するかチェック
+        cursor.execute(
+            "SELECT id FROM customers where id = ?" , (customer_id,))
+        customer = cursor.fetchone()
+        
+        if customer is None:
+            raise HTTPException(
+                status_code=404,
+                detail="顧客情報が見つかりません")
+            
+        cursor.execute("""
+            INSERT INTO stays (
+                customer_id,
+                stay_date,
+                notes
+            ) VALUES(?, ?, ?)
+        """, (customer_id, stay.stay_date.isoformat(), stay.notes)
+        )
+        connection.commit()
+        return {"message": "stay created"}
+
+    finally:
+        connection.close()
+
 
 
 @app.get("/customers/{customer_id}/stays")
 def get_stays(customer_id: int):
     connection = sqlite3.connect("hotel.db")
-    connection.row_factory = sqlite3.Row
-    cursor = connection.cursor()
-    cursor.execute("""
-        SELECT * FROM stays WHERE customer_id = ? ORDER BY stay_date DESC
-        """, (customer_id,)
-    )
-    stays = cursor.fetchall()
-    connection.close()
-    return [dict(stay) for stay in stays]
+    try:
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+
+        cursor.execute(
+            "SELECT id FROM customers WHERE id = ?"
+            , (customer_id,)
+        )
+        customer = cursor.fetchone()
+
+        if customer is None:
+            raise HTTPException(status_code=404, detail="顧客が存在しません")
+        
+        cursor.execute("""
+            SELECT * FROM stays WHERE customer_id = ? ORDER BY stay_date DESC
+            """, (customer_id,)
+        )
+        stays = cursor.fetchall()
+        return [dict(stay) for stay in stays]
+
+    finally:
+        connection.close()
 
 
 # 間違った日付で宿泊登録してしまった場合に、履歴を1件だけ削除
 @app.delete("/stays/{stay_id}")
 def delete_stay(stay_id: int):
+    
     connection = sqlite3.connect("hotel.db")
-    cursor = connection.cursor()
-    cursor.execute("""
-        DELETE FROM stays WHERE id = ?
-    """, (stay_id,)
-    )
-    connection.commit()
-    connection.close()
-    return {"message": "stay deleted"}
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            DELETE FROM stays WHERE id = ?
+        """, (stay_id,)
+        )
+        delete_count = cursor.rowcount
+        if delete_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="宿泊情報が存在せず削除できませんでした。"
+            )
+        connection.commit()
+        return {"message": "stay deleted"}
+
+    finally:
+        connection.close()
+    
+    

@@ -15,15 +15,14 @@ const notes = ref("");
 
 // エラーハンドリング用
 const submitError = ref("");
-const staySubmitError = ref("");
 const stayDeleteError = ref("");
 const customerDeleteError = ref("");
 const stayFetchError = ref("");
+const staySubmitError = ref("");
 
 // 宿泊登録用
 const stayCustomerId = ref(null);
-const stayDate = ref("");
-const stayNotes = ref("");
+
 
 const sortBy = ref("date");
 
@@ -31,14 +30,17 @@ const sortBy = ref("date");
 const stayHistory = ref([]);
 const historyCustomerId = ref(null);
 
+// API通信開始　true 終了　false
+const isSubmitting = ref(false); //　顧客登録中
+const isStaySubmitting = ref(false); 
 
 const {customers, 
         addCustomer, 
         deleteCustomer, 
         updateCustomer, 
-        addStay, 
         fetchStays,
-        deleteStay
+        deleteStay,
+        addStay
       } = useCustomers();
 
 
@@ -88,35 +90,29 @@ async function handleSubmit() {
     }
 
   let result;
-  if (editingId.value === null) {
-    result = await addCustomer(customerData);
-  } else {
-    result = await updateCustomer(editingId.value, customerData);
-  }
-  if (result.success) {
-    submitError.value = "";
-    resetForm();
-  } else {
-    submitError.value = result.message;
-  }
-}
+  isSubmitting.value = true;
 
-async function handleStaySubmit() {
-  staySubmitError.value = "";
-
-  const result = await addStay(stayCustomerId.value, {
-    stayDate: stayDate.value,
-    notes: stayNotes.value
-  });
-  if (result.success) {
-    stayDate.value = "";
-    stayNotes.value = "";
-    stayCustomerId.value = null;
-  } else {
-    staySubmitError.value = result.message;
+  try{
+    if (editingId.value === null) {
+      result = await addCustomer(customerData);
+    } else {
+      result = await updateCustomer(editingId.value, customerData);
+    }
+    if (result.success) {
+      submitError.value = "";
+      resetForm();
+    } else {
+      submitError.value = result.message;
+    }
+  }
+    
+  finally{
+    isSubmitting.value = false;
   }
   
 }
+
+
 
 // 顧客情報の更新をキャンセル
 function resetForm() {
@@ -132,9 +128,6 @@ function resetForm() {
 // 宿泊登録をキャンセル
 function cancelStay() {
   stayCustomerId.value = null;
-  stayDate.value = "";
-  stayNotes.value = "";
-  staySubmitError.value = "";
 }
 
 const filteredCustomers = computed(() => {
@@ -152,10 +145,7 @@ const filteredCustomers = computed(() => {
 
 function registerStay(customerId) {
   stayCustomerId.value = customerId;
-  stayDate.value = "";
-  stayNotes.value = "";
   staySubmitError.value = "";
-  console.log(stayCustomerId.value);
 }
 
 async function showStayHistory(customerId) {
@@ -184,10 +174,19 @@ async function handleDeleteStay(stayId) {
   const confirmed = window.confirm("この宿泊履歴を削除しますか？");
   if (!confirmed) return;
   
+  stayDeleteError.value = "";
+  stayFetchError.value = "";
+  
   const result =  await deleteStay(stayId);
   if (result.success) {
-    stayDeleteError = "";
-    stayHistory.value = await fetchStays(historyCustomerId.value);
+    stayDeleteError.value = "";
+    const stayResult = await fetchStays(historyCustomerId.value);
+    if (stayResult.success) {
+      stayHistory.value = stayResult.data;
+    } else {
+      stayFetchError.value = stayResult.message;
+    }
+
   } else {
     stayDeleteError.value = result.message;
   }
@@ -204,6 +203,24 @@ async function handleDeleteCustomer(customerId) {
   } else {
     customerDeleteError.value = result.message;
   }
+}
+
+async function handleStaySubmit(customerId, stayData) {
+  isStaySubmitting.value = true;
+  try {
+    const result = await addStay(customerId, stayData);
+  if (result.success) {
+    staySubmitError.value = "";
+    // フォームを閉じる
+    cancelStay();
+    
+  } else {
+    staySubmitError.value = result.message;
+  }
+  } finally {
+    isStaySubmitting.value = false;
+  }
+  
 }
 
 
@@ -246,23 +263,19 @@ async function handleDeleteCustomer(customerId) {
     
     <CustomerList 
       :filtered-customers="filteredCustomers"
+      :stay-customer-id="stayCustomerId"
+      :is-stay-submitting="isStaySubmitting"
+      :stay-submit-error="staySubmitError"
       @delete="handleDeleteCustomer"
       @edit="startEdit"
       @register-stay="registerStay"
-      @show-history="showStayHistory"/>
+      @show-history="showStayHistory"
+      @cancel-stay="cancelStay"
+      @add-stay="handleStaySubmit"/>
     <p v-if="customerDeleteError">{{ customerDeleteError }}</p>
     <p v-if="stayFetchError"> {{ stayFetchError }}</p>
 
-    <form @submit.prevent="handleStaySubmit" 
-      v-if="stayCustomerId !== null">
-      <input v-model="stayDate" type="date" >
-      <textarea v-model="stayNotes"></textarea>
-      <button type="button" @click="cancelStay">キャンセル</button>
-      <button type="submit">登録</button>
-      <p v-if="staySubmitError">{{ staySubmitError }}</p>
-
-    </form> 
-
+  
     <h2>新規顧客登録</h2>
 
     <CustomerForm 
@@ -273,6 +286,7 @@ async function handleDeleteCustomer(customerId) {
     :phone-error="phoneError"
     :smoking-preference="smokingPreference"
     :notes="notes"
+    :is-submitting="isSubmitting"
     @update-name="newName=$event"
     @update-phone="newPhone=$event"
     @submit="handleSubmit"
@@ -281,6 +295,7 @@ async function handleDeleteCustomer(customerId) {
     @cancel="resetForm"
     @update-smoking-preference="smokingPreference = $event"
     @update-notes="notes = $event"
+    
     />
   </main>
   <p v-if="submitError">{{ submitError }}</p>

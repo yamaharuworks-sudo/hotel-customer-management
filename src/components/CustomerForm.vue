@@ -9,7 +9,8 @@ const props = defineProps({
     nameError: String,
     phoneError: String,
     smokingPreference: String,
-    notes: String
+    notes: String,
+    isSubmitting: Boolean
 
 })
 
@@ -93,8 +94,9 @@ const emit = defineEmits(
             v-if="editingId !== null"
             type="button">キャンセル
         </button>
-        <button class="submit-button" type="submit">
-            {{editingId === null ? "登録" : "更新"}}
+        <button :disabled="isSubmitting"
+        class="submit-button" type="submit">
+            {{ isSubmitting ? "保存中" : editingId === null ? "登録" : "更新"}}
         </button>
     </div>
     

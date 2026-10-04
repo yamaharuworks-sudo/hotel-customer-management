@@ -1,9 +1,17 @@
 <script setup>
 
+import StayForm from './StayForm.vue';
+
+
 const props = defineProps({
-    filteredCustomers: Array
+    filteredCustomers: Array,
+    stayCustomerId: Number,
+    staySubmitError: String,
+    isStaySubmitting: Boolean
 });
-const emit = defineEmits(["delete", "edit", "register-stay", "show-history"]);
+const emit = defineEmits(["delete", "edit", 
+    "register-stay", "show-history", 
+    "cancel-stay", "add-stay"]);
 
 
 </script>
@@ -35,6 +43,15 @@ const emit = defineEmits(["delete", "edit", "register-stay", "show-history"]);
                 <button @click="emit('show-history', customer.id)">宿泊履歴</button>
                 <button class="edit-button" @click="emit('edit', customer)">編集</button>
                 <button class="delete-button" @click="emit('delete', customer.id)">削除</button>
+            </div>
+            
+            <div v-if="stayCustomerId === customer.id">
+                <StayForm
+                    :stay-submit-error="staySubmitError"
+                    :is-stay-submitting="isStaySubmitting"
+                    @cancel="emit('cancel-stay')"
+                    @add-stay="emit('add-stay', customer.id, $event)"
+                />
             </div>
             
         </li>
