@@ -1,10 +1,13 @@
 import {ref, onMounted} from "vue";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+
 export function useCustomers() {
 
 
     async function fetchCustomers() {
-        const response = await fetch("http://127.0.0.1:8000/customers");
+        const response = await fetch(`${API_BASE_URL}/customers`);
         const data = await response.json();
         customers.value = data.map((customer) => ({
             id: customer.id,
@@ -25,29 +28,11 @@ export function useCustomers() {
         fetchCustomers();
     });
 
-    const customersId = customers.value.map((customer) => customer.id);
-    let nextId = customersId.length === 0 
-    ? 1
-    : Math.max(...customersId) + 1;
-
-
-
-    // customers が変更されたら自動で保存する watch
-    // customersの値が変わったら、処理を実行
-    // deep: trueでオブジェクト内の値の変更も検知
-    // watch(customers, () => {
-    // localStorage.setItem("customers", JSON.stringify(customers.value));
-
-    // }, 
-    // {
-    //     deep: true
-    // }
-    // );
 
 
     async function addCustomer(customerData) {
         try {
-            const response = await fetch("http://127.0.0.1:8000/customers", {
+            const response = await fetch(`${API_BASE_URL}/customers`, {
                 method: "POST", 
                 headers: {
                     "Content-Type": "application/json"
@@ -88,7 +73,7 @@ export function useCustomers() {
 
     async function deleteCustomer(id) {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/customers/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
                 method: "DELETE"
             })
             if (response.ok) {
@@ -104,20 +89,20 @@ export function useCustomers() {
             return {
                     success: false,
                     errorType: "network",
-                    message: "顧客を削除できませんでした。管理者にお問い合わせください。"
+                    message: "サーバーに接続できません。ネットワーク接続を確認してください。"
             }
         }
         return {
                 success: false,
                 errorType: "server",
-                message: "サーバーに接続できません。ネットワーク接続を確認してください。"
+                message: "顧客を削除できませんでした。"
         }
         
     }
 
     async function deleteStay(stayId) {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/stays/${stayId}`, {
+            const response = await fetch(`${API_BASE_URL}/stays/${stayId}`, {
             method: "DELETE"
             })
             if (response.ok) {
@@ -149,7 +134,7 @@ export function useCustomers() {
 
     async function updateCustomer(id, customerData) {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/customers/${id}`,{
+            const response = await fetch(`${API_BASE_URL}/customers/${id}`,{
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json"
@@ -186,7 +171,7 @@ export function useCustomers() {
 
     async function addStay(customerId, stayData) {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`, 
+            const response = await fetch(`${API_BASE_URL}/customers/${customerId}/stays`, 
             {
                 method: "POST",
                 headers: {
@@ -225,7 +210,7 @@ export function useCustomers() {
     
     async function fetchStays(customerId) {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/customers/${customerId}/stays`);
+            const response = await fetch(`${API_BASE_URL}/customers/${customerId}/stays`);
             
             if (response.ok) {
                 const data = await response.json();

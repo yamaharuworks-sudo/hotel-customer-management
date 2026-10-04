@@ -3,6 +3,7 @@ import {ref, computed} from "vue";
 import CustomerList from './components/CustomerList.vue'
 import CustomerForm from "./components/CustomerForm.vue";
 import { useCustomers } from "./composables/useCustomers.js";
+import StayHistory from "./components/StayHistory.vue";
 
 const newName = ref("");
 const newPhone = ref("");
@@ -53,13 +54,9 @@ function startEdit(customer) {
 }
 
 
-async function handleSubmit() {
-  nameError.value = "";
-  phoneError.value = "";
-  submitError.value = "";
-
+function validateCustomer() {
   let hasError = false;
-  let digitsOnly = newPhone.value.replaceAll("-","");
+  const digitsOnly = newPhone.value.replaceAll("-","");
 
   if (newName.value.trim() === "") {
     nameError.value = "氏名を入力してください";
@@ -79,9 +76,18 @@ async function handleSubmit() {
     hasError = true;
   }
 
-  if (hasError) {
-    return;
-  } 
+  return hasError;
+}
+
+async function handleSubmit() {
+  nameError.value = "";
+  phoneError.value = "";
+  submitError.value = "";
+
+  const hasError = validateCustomer();
+
+  if (hasError) return;
+
   const customerData = {
       name: newName.value,
       phone: newPhone.value,
@@ -89,15 +95,13 @@ async function handleSubmit() {
       notes: notes.value
     }
 
-  let result;
   isSubmitting.value = true;
 
   try{
-    if (editingId.value === null) {
-      result = await addCustomer(customerData);
-    } else {
-      result = await updateCustomer(editingId.value, customerData);
-    }
+    const result = editingId.value === null
+      ? await addCustomer(customerData)
+      : await updateCustomer(editingId.value, customerData);
+
     if (result.success) {
       submitError.value = "";
       resetForm();
@@ -244,21 +248,14 @@ async function handleStaySubmit(customerId, stayData) {
       </select>
     </div>
 
-    <div v-if="historyCustomerId !== null">
-      <h3>宿泊履歴</h3>
-      <div v-if="stayHistory.length > 0 ">
-        
-        <div v-for="stay in stayHistory" :key="stay.id">
-          <p>宿泊日： {{ stay.stay_date }}</p>
-          <p>備考： {{ stay.notes }}</p>
-          <button @click="handleDeleteStay(stay.id)">削除</button>
-          <p v-if="stayDeleteError">{{ stayDeleteError }}</p>
-        </div>
-      </div>
-      <p v-else>宿泊履歴はありません</p>
-      <button @click="closeStayHistory">閉じる</button>
-    </div>
     
+    <StayHistory 
+      v-if="historyCustomerId !== null"
+      :stayHistory
+      :stayDeleteError
+      @delete-stay="handleDeleteStay"
+      @close="closeStayHistory"
+    />
     
     
     <CustomerList 
@@ -274,6 +271,7 @@ async function handleStaySubmit(customerId, stayData) {
       @add-stay="handleStaySubmit"/>
     <p v-if="customerDeleteError">{{ customerDeleteError }}</p>
     <p v-if="stayFetchError"> {{ stayFetchError }}</p>
+
 
   
     <h2>新規顧客登録</h2>

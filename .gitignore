@@ -29,3 +29,6 @@ __pycache__/
 
 # SQLite database
 *.db
+
+
+.env
