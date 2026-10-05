@@ -36,6 +36,9 @@ const isSubmitting = ref(false); //　顧客登録中
 const isStaySubmitting = ref(false); 
 
 const {customers, 
+        fetchCustomers,
+        fetchCustomerError,
+        isLoadingCustomers,
         addCustomer, 
         deleteCustomer, 
         updateCustomer, 
@@ -258,7 +261,13 @@ async function handleStaySubmit(customerId, stayData) {
     />
     
     
-    <CustomerList 
+    <p v-if="isLoadingCustomers">顧客情報を読み込み中...</p>
+    <div v-else-if="fetchCustomerError">
+       <p>{{fetchCustomerError}}</p>
+      <button @click="fetchCustomers">再読み込み</button>
+    </div>
+   
+    <CustomerList v-else
       :filtered-customers="filteredCustomers"
       :stay-customer-id="stayCustomerId"
       :is-stay-submitting="isStaySubmitting"

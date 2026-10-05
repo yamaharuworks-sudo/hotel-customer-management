@@ -3,23 +3,39 @@ import {ref, onMounted} from "vue";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 
-export function useCustomers() {
+    export function useCustomers() {
 
+        const fetchCustomerError = ref("");
+        const isLoadingCustomers  = ref(false);
 
-    async function fetchCustomers() {
-        const response = await fetch(`${API_BASE_URL}/customers`);
-        const data = await response.json();
-        customers.value = data.map((customer) => ({
-            id: customer.id,
-            name: customer.name,
-            phone: customer.phone,
-            smokingPreference: customer.smoking_preference,
-            notes: customer.notes,
-            stayCount: customer.stay_count,
-            lastStayedDate: customer.last_stayed_date
-        }));
+        async function fetchCustomers() {
+            try {
+                fetchCustomerError.value = "";
+                isLoadingCustomers .value = true;
+                const response = await fetch(`${API_BASE_URL}/customers`);
+                if (response.ok) {
+                    const data = await response.json();
+                    customers.value = data.map((customer) => ({
+                        id: customer.id,
+                        name: customer.name,
+                        phone: customer.phone,
+                        smokingPreference: customer.smoking_preference,
+                        notes: customer.notes,
+                        stayCount: customer.stay_count,
+                        lastStayedDate: customer.last_stayed_date
+                    }));
+                } else {
+                    fetchCustomerError.value = "顧客一覧を取得できませんでした";
+                }
 
-    }
+            } catch (error) {
+                console.log(error);
+                fetchCustomerError.value = "サーバーに接続できませんでした";
+            } finally {
+                isLoadingCustomers .value = false;
+            }
+
+        }
 
     const customers = ref([]);
 
@@ -241,11 +257,14 @@ export function useCustomers() {
 
     return {
         customers,
+        fetchCustomerError,
+        isLoadingCustomers,
         addCustomer,
         deleteCustomer,
         updateCustomer,
         addStay,
         fetchStays,
-        deleteStay
+        deleteStay,
+        fetchCustomers
     };
 }
