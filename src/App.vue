@@ -13,6 +13,7 @@ const editingId = ref(null);
 const searchQuery = ref("");
 const smokingPreference = ref("none");
 const notes = ref("");
+const firstStayDate = ref("");
 
 // エラーハンドリング用
 const submitError = ref("");
@@ -95,7 +96,10 @@ async function handleSubmit() {
       name: newName.value,
       phone: newPhone.value,
       smokingPreference: smokingPreference.value,
-      notes: notes.value
+      notes: notes.value,
+      ...(editingId.value === null && { //新規登録の場合だけfirstStayDate登録　宿泊日が空欄＝null
+        firstStayDate: firstStayDate.value || null
+      })     
     }
 
   isSubmitting.value = true;
@@ -130,6 +134,7 @@ function resetForm() {
   phoneError.value = "";
   notes.value = "";
   smokingPreference.value = "none";
+  firstStayDate.value = "";
 }
 
 // 宿泊登録をキャンセル
@@ -294,8 +299,10 @@ async function handleStaySubmit(customerId, stayData) {
     :smoking-preference="smokingPreference"
     :notes="notes"
     :is-submitting="isSubmitting"
+    :first-stay-date="firstStayDate"
     @update-name="newName=$event"
     @update-phone="newPhone=$event"
+    @update-first-stay-date="firstStayDate=$event;console.log('更新後のfirstStayDate:', firstStayDate)"
     @submit="handleSubmit"
     @clear-name-error="nameError=''"
     @clear-phone-error="phoneError=''"
