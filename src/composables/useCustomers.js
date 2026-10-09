@@ -57,7 +57,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                     name: customerData.name,
                     phone: customerData.phone,
                     smoking_preference: customerData.smokingPreference,
-                    notes: customerData.notes
+                    notes: customerData.notes,
+                    first_stay_date: customerData.firstStayDate
                 })
             }); 
             if (response.ok) {

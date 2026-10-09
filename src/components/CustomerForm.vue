@@ -2,6 +2,7 @@
 const props = defineProps({
     newName: String,
     newPhone: String,
+    firstStayDate: String,
     editingId: {
         type: Number,
         default: null
@@ -22,7 +23,8 @@ const emit = defineEmits(
     "submit",
     "clear-name-error",
     "clear-phone-error",
-    "cancel"])
+    "cancel",
+    "update-first-stay-date"])
 
 </script>
 
@@ -55,6 +57,15 @@ const emit = defineEmits(
         <p v-if="phoneError" class="error-message">{{ phoneError }}</p>
     </div>
 
+    <div class="form-group" v-if="editingId === null">
+        <label>初回宿泊日（任意）</label>
+        <input 
+            id="first-stay-date"
+            type="date"
+            :value="firstStayDate"
+            @input="emit('update-first-stay-date',$event.target.value)"
+        >
+    </div>
     <div class="form-group">
         <label>喫煙区分</label>
         <input 

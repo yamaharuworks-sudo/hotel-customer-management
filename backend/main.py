@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from typing import Optional
 from database import get_connection
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field, field_validator
@@ -7,11 +8,13 @@ import re
 from datetime import date
 from fastapi import HTTPException
 
+
 class CustomerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
     phone: str
-    smoking_preference: str
-    notes: str
+    smoking_preference: Optional[str] = None
+    notes: Optional[str] = None
+    first_stay_date: Optional[date] = None
 
     @field_validator("name")
     @classmethod
@@ -89,14 +92,32 @@ def create_customer(customer: CustomerCreate):
                     smoking_preference,
                     notes
                 ) VALUES (%s, %s, %s, %s)
+                RETURNING id
             """,(
                 customer.name, 
                 customer.phone, 
                 customer.smoking_preference, 
-                customer.notes
+                customer.notes,
             ))
 
-    return {"message": "customer created"}
+            customer_id = cursor.fetchone()[0]
+
+            if customer.first_stay_date is not None:
+                cursor.execute("""
+                    INSERT INTO stays(
+                        customer_id,
+                        stay_date
+                    ) VALUES (%s, %s)
+
+                """, (
+                    customer_id,
+                    customer.first_stay_date
+                ))
+
+    return {
+        "message": "customer created",
+        "customer_id": customer_id        
+    }
 
 @app.delete("/customers/{customer_id}")
 def delete_customer(customer_id: int):
