@@ -5,9 +5,10 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel, Field, field_validator
 from fastapi.middleware.cors import CORSMiddleware
 import re
-from datetime import date
-from fastapi import HTTPException
-
+from datetime import date, datetime, timedelta, timezone
+from fastapi import HTTPException, FastAPI, Response, Depends, Cookie
+from auth import verify_password, generate_session_token, hash_session_token, get_current_admin, verify_request_origin
+import os
 
 class CustomerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
@@ -41,6 +42,12 @@ class StayCreate(BaseModel):
     stay_date: date
     notes: str
 
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -56,8 +63,102 @@ def root():
     return {"message":"Hotel Customer API"}
 
 
+@app.post("/login", dependencies=[Depends(verify_request_origin)])
+def login(login: LoginRequest, response: Response):
+    with get_connection() as connection:
+        with connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """
+                SELECT id, email, password_hash
+                FROM admin_users
+                WHERE email = %s
+                """,
+                (login.email.strip().lower(),)
+            )
+
+            admin = cursor.fetchone()
+
+    if admin is None:
+        raise HTTPException(
+            status_code=401,
+            detail="メールアドレスまたはパスワードが正しくありません"
+        )
+    
+    # パスワードが正しいか検証
+    if not verify_password(login.password, admin["password_hash"]):
+        raise HTTPException(
+            status_code=401,
+            detail="メールアドレスまたはパスワードが正しくありません"
+        )
+
+    # セッショントークンを生成
+    session_token = generate_session_token()
+    # DB保存用にハッシュ化
+    token_hash = hash_session_token(session_token)
+    # セッションの有効期限を設定（8時間）
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=8)
+    # セッション情報をDBに保存
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO admin_sessions (
+                    admin_id,
+                    token_hash,
+                    expires_at
+                ) VALUES (%s, %s, %s)
+                """, 
+                (
+                    admin["id"],
+                    token_hash,
+                    expires_at
+                )
+            )
+
+    is_production = os.getenv("APP_ENV") == "production"
+
+    # cookie設定
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=is_production,
+        samesite="none" if is_production else "lax",
+        max_age=60 * 60 * 8,
+        path="/"
+    )
+
+    return {"message": "ログイン成功"}
+
+@app.post("/logout", dependencies=[Depends(verify_request_origin)])
+def logout(
+    response: Response,
+    session_token: Optional[str] = Cookie(default=None)
+):
+    if session_token is not None:
+        token_hash = hash_session_token(session_token)
+
+        with get_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM admin_sessions
+                    WHERE token_hash = %s
+                    """,
+                    (token_hash,)
+                )
+
+    is_production = os.getenv("APP_ENV") == "production"
+    response.delete_cookie(
+        key="session_token",
+        path="/",
+        secure=is_production,
+        samesite="none" if is_production else "lax"
+    )
+
+    return {"message": "ログアウトしました"}
+
 @app.get("/customers")
-def get_customers():
+def get_customers(admin: dict = Depends(get_current_admin)):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
     
@@ -80,7 +181,7 @@ def get_customers():
 
     return customers
 
-@app.post("/customers")
+@app.post("/customers", dependencies=[Depends(get_current_admin), Depends(verify_request_origin)])
 def create_customer(customer: CustomerCreate):
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -119,7 +220,7 @@ def create_customer(customer: CustomerCreate):
         "customer_id": customer_id        
     }
 
-@app.delete("/customers/{customer_id}")
+@app.delete("/customers/{customer_id}", dependencies=[Depends(get_current_admin), Depends(verify_request_origin)])
 def delete_customer(customer_id: int):
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -150,7 +251,7 @@ def delete_customer(customer_id: int):
 
 
 
-@app.put("/customers/{customer_id}")
+@app.put("/customers/{customer_id}", dependencies=[Depends(get_current_admin), Depends(verify_request_origin)])
 def update_customer(customer_id: int, customer: CustomerCreate):
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -177,7 +278,7 @@ def update_customer(customer_id: int, customer: CustomerCreate):
 
 
 
-@app.post("/customers/{customer_id}/stays")
+@app.post("/customers/{customer_id}/stays", dependencies=[Depends(get_current_admin), Depends(verify_request_origin)])
 def create_stay(customer_id: int, stay: StayCreate):
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -209,7 +310,7 @@ def create_stay(customer_id: int, stay: StayCreate):
 
 
 
-@app.get("/customers/{customer_id}/stays")
+@app.get("/customers/{customer_id}/stays", dependencies=[Depends(get_current_admin)])
 def get_stays(customer_id: int):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
@@ -237,7 +338,7 @@ def get_stays(customer_id: int):
 
 
 # 間違った日付で宿泊登録してしまった場合に、履歴を1件だけ削除
-@app.delete("/stays/{stay_id}")
+@app.delete("/stays/{stay_id}", dependencies=[Depends(get_current_admin), Depends(verify_request_origin)])
 def delete_stay(stay_id: int):
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -253,3 +354,10 @@ def delete_stay(stay_id: int):
                     detail="宿泊情報が存在せず削除できませんでした。"
                 )
         return {"message": "stay deleted"}
+
+@app.get("/me")
+def get_me(admin: dict = Depends(get_current_admin)):
+    return {
+        "id": admin["id"],
+        "email": admin["email"]
+    }
