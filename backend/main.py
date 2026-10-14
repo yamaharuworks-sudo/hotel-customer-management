@@ -80,7 +80,7 @@ app.add_exception_handler(
 
 
 @app.post("/login", dependencies=[Depends(verify_request_origin)])
-@limiter.limit("5/minutes")
+@limiter.limit("5/minute")
 def login(request: Request, login: LoginRequest, response: Response):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
