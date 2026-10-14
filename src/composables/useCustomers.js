@@ -12,7 +12,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
             try {
                 fetchCustomerError.value = "";
                 isLoadingCustomers .value = true;
-                const response = await fetch(`${API_BASE_URL}/customers`);
+                const response = await fetch(`${API_BASE_URL}/customers`, {
+                    credentials: "include"
+                });
                 if (response.ok) {
                     const data = await response.json();
                     customers.value = data.map((customer) => ({
@@ -53,6 +55,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                 headers: {
                     "Content-Type": "application/json"
                 }, 
+                credentials: "include", 
                 body: JSON.stringify({
                     name: customerData.name,
                     phone: customerData.phone,
@@ -91,7 +94,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     async function deleteCustomer(id) {
         try {
             const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
-                method: "DELETE"
+                method: "DELETE",
+                credentials: "include"
             })
             if (response.ok) {
                 await fetchCustomers();
@@ -120,7 +124,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     async function deleteStay(stayId) {
         try {
             const response = await fetch(`${API_BASE_URL}/stays/${stayId}`, {
-            method: "DELETE"
+            method: "DELETE",
+            credentials: "include"
             })
             if (response.ok) {
                 await fetchCustomers();
@@ -156,6 +161,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                 headers: {
                     "Content-Type": "application/json"
                 },
+                credentials: "include", 
                 body: JSON.stringify({
                     name: customerData.name,
                     phone: customerData.phone,
@@ -194,6 +200,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                 headers: {
                     "Content-Type": "application/json"
                 },
+                credentials: "include", 
                 body: JSON.stringify({
                     stay_date: stayData.stayDate,
                     notes: stayData.notes
@@ -227,7 +234,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     
     async function fetchStays(customerId) {
         try {
-            const response = await fetch(`${API_BASE_URL}/customers/${customerId}/stays`);
+            const response = await fetch(`${API_BASE_URL}/customers/${customerId}/stays`,{
+                credentials: "include"
+            });
             
             if (response.ok) {
                 const data = await response.json();

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from typing import Optional
 from database import get_connection
 from psycopg.rows import dict_row
@@ -9,6 +9,11 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException, FastAPI, Response, Depends, Cookie
 from auth import verify_password, generate_session_token, hash_session_token, get_current_admin, verify_request_origin
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
 
 class CustomerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
@@ -49,6 +54,7 @@ class LoginRequest(BaseModel):
 
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173",
@@ -58,13 +64,24 @@ app.add_middleware(
     allow_headers=["*"]
 
 )
+
 @app.get("/")
 def root():
     return {"message":"Hotel Customer API"}
 
 
+# ログイン試行回数を制限
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler
+)
+
+
 @app.post("/login", dependencies=[Depends(verify_request_origin)])
-def login(login: LoginRequest, response: Response):
+@limiter.limit("5/minutes")
+def login(request: Request, login: LoginRequest, response: Response):
     with get_connection() as connection:
         with connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute(

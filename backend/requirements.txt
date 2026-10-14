@@ -15,3 +15,4 @@ uvicorn==0.54.0
 python-dotenv==1.2.1
 psycopg[binary]==3.2.13
 argon2-cffi==25.1.0
+slowapi==0.1.10
