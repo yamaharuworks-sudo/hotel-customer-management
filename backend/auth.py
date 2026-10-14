@@ -71,12 +71,21 @@ def get_current_admin(
 
 def verify_request_origin(request: Request):
     origin = request.headers.get("origin")
+    app_env = os.getenv("APP_ENV", "development")
 
     is_production = os.getenv("APP_ENV") == "production"
 
-    if is_production:
+    if app_env == "production":
         allowed_origins = {
             "https://hotel-customer-management.onrender.com",
+        }
+    elif app_env == "staging":
+        allowed_origins = {
+            "https://hotel-customer-management-staging.onrender.com",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8000",
+            "http://localhost:8000",
         }
     else:
         allowed_origins = {
@@ -85,6 +94,7 @@ def verify_request_origin(request: Request):
             "http://127.0.0.1:8000",
             "http://localhost:8000",
         }
+        
 
     if origin not in allowed_origins:
         raise HTTPException(

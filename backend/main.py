@@ -58,7 +58,8 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173",
-    "https://hotel-customer-management.onrender.com"],
+    "https://hotel-customer-management.onrender.com",
+    "https://hotel-customer-management-staging.onrender.com",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -131,15 +132,16 @@ def login(request: Request, login: LoginRequest, response: Response):
                 )
             )
 
-    is_production = os.getenv("APP_ENV") == "production"
+    # is_production = os.getenv("APP_ENV") == "production"
+    is_secure_environment = os.getenv("APP_ENV") in ("production", "staging")
 
     # cookie設定
     response.set_cookie(
         key="session_token",
         value=session_token,
         httponly=True,
-        secure=is_production,
-        samesite="none" if is_production else "lax",
+        secure=is_secure_environment,
+        samesite="none" if is_secure_environment else "lax",
         max_age=60 * 60 * 8,
         path="/"
     )
@@ -164,12 +166,12 @@ def logout(
                     (token_hash,)
                 )
 
-    is_production = os.getenv("APP_ENV") == "production"
+    is_secure_environment = os.getenv("APP_ENV") in ("production", "staging")
     response.delete_cookie(
         key="session_token",
         path="/",
-        secure=is_production,
-        samesite="none" if is_production else "lax"
+        secure=is_secure_environment,
+        samesite="none" if is_secure_environment else "lax"
     )
 
     return {"message": "ログアウトしました"}
