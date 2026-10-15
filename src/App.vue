@@ -1,9 +1,10 @@
 <script setup>
-import {ref, computed} from "vue";
+import {ref, computed, onMounted} from "vue";
 import CustomerList from './components/CustomerList.vue'
 import CustomerForm from "./components/CustomerForm.vue";
 import { useCustomers } from "./composables/useCustomers.js";
 import StayHistory from "./components/StayHistory.vue";
+import LoginForm from "./components/LoginForm.vue";
 
 const newName = ref("");
 const newPhone = ref("");
@@ -36,6 +37,16 @@ const historyCustomerId = ref(null);
 const isSubmitting = ref(false); //　顧客登録中
 const isStaySubmitting = ref(false); 
 
+// ログイン認証用
+const loginEmail = ref("");
+const loginPassword = ref("");
+const loginError = ref("");
+const isLoggingIn = ref(false);
+
+// 認証状態
+const currentAdmin = ref(null);
+const isCheckingAuth = ref(true);
+
 const {customers, 
         fetchCustomers,
         fetchCustomerError,
@@ -47,6 +58,104 @@ const {customers,
         deleteStay,
         addStay
       } = useCustomers();
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+async function checkAuth() {
+  isCheckingAuth.value = true;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/me`, {
+      credentials: "include"
+    });
+    if (response.ok) {
+      currentAdmin.value = await response.json();
+    } else {
+      currentAdmin.value = null;
+    }
+  } catch (error) {
+    console.log("認証確認エラー:", error);
+    currentAdmin.value = null;
+  } finally {
+    isCheckingAuth.value = false;
+  }
+}
+
+async function handleLogin() {
+  if (isLoggingIn.value) return;
+  isLoggingIn.value = true;
+  loginError.value = "";
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: loginEmail.value,
+        password: loginPassword.value
+      })
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        loginError.value = "メールアドレスまたはパスワードが正しくありません";
+      } else if (response.status === 429) {
+        loginError.value = "ログイン試行回数が多すぎます。しばらく待ってから再試行してください";
+      } else {
+        loginError.value = "ログインできませんでした";
+      }
+      
+        return;
+    }
+
+    loginPassword.value = "";
+
+    // Cookieを使ってログイン状態を確認
+    await checkAuth();
+
+    if (currentAdmin.value === null) {
+      loginEmail.value = "ログイン状態を確認できませんでした";
+    } else {
+      await fetchCustomers();
+    }
+  } catch (error) {
+    console.log("ログインエラー:", error);
+    loginError.value = "サーバーに接続できませんでした";
+  } finally {
+    isLoggingIn.value = false;
+  }
+}
+
+async function handleLogout() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/logout`, {
+      method: "POST",
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      throw new Error("ログアウトに失敗しました");
+    }
+    currentAdmin.value = null;
+    loginEmail.value = "";
+    loginPassword.value = "";
+    loginError.value = "";
+
+    // 表示中の顧客データをクリア
+    customers.value = [];
+    stayHistory.value = [];
+    historyCustomerId.value = null;
+    stayCustomerId.value = null;
+
+    resetForm();
+  } catch (error) {
+    console.error("ログアウトエラー:", error);
+    window.alert("ログアウトできませんでした。もう一度お試しください。");
+  }
+}
 
 
 function startEdit(customer) {
@@ -235,6 +344,9 @@ async function handleStaySubmit(customerId, stayData) {
   
 }
 
+onMounted(() => {
+  checkAuth();
+});
 
 </script>
 
@@ -243,76 +355,94 @@ async function handleStaySubmit(customerId, stayData) {
 <template>
   <main class="container">
     <h1>ホテル顧客管理台帳</h1>
-    <div class="controls">
-      <input class="search-input"
-        v-model="searchQuery"
-        type="text"
-        placeholder="検索">
 
-      <select class="sort-select" 
-        v-model="sortBy">
-        <option value="date">前回宿泊日が新しい順</option>
-        <option value="count">宿泊回数が多い順</option>
-      </select>
-    </div>
+    <p v-if="isCheckingAuth">ログイン状態を確認中...</p>
 
-    
-    <StayHistory 
-      v-if="historyCustomerId !== null"
-      :stayHistory
-      :stayDeleteError
-      @delete-stay="handleDeleteStay"
-      @close="closeStayHistory"
+    <LoginForm 
+      v-else-if="currentAdmin === null"
+      :email="loginEmail"
+      :password="loginPassword"
+      :is-logged-in="isLoggingIn"
+      :login-error="loginError"
+      @update-email="loginEmail = $event"
+      @update-password="loginPassword = $event" 
+      @submit="handleLogin"
     />
+
+    <div v-else>
+      <button type="button" @click="handleLogout">ログアウト</button>
+      <div class="controls">
+        <input class="search-input"
+          v-model="searchQuery"
+          type="text"
+          placeholder="検索">
+
+        <select class="sort-select" 
+          v-model="sortBy">
+          <option value="date">前回宿泊日が新しい順</option>
+          <option value="count">宿泊回数が多い順</option>
+        </select>
+      </div>
+
     
+      <StayHistory 
+        v-if="historyCustomerId !== null"
+        :stayHistory
+        :stayDeleteError
+        @delete-stay="handleDeleteStay"
+        @close="closeStayHistory"
+      />
+      
+      
+      <p v-if="isLoadingCustomers">顧客情報を読み込み中...</p>
+      <div v-else-if="fetchCustomerError">
+        <p>{{fetchCustomerError}}</p>
+        <button @click="fetchCustomers">再読み込み</button>
+      </div>
     
-    <p v-if="isLoadingCustomers">顧客情報を読み込み中...</p>
-    <div v-else-if="fetchCustomerError">
-       <p>{{fetchCustomerError}}</p>
-      <button @click="fetchCustomers">再読み込み</button>
+      <CustomerList v-else
+        :filtered-customers="filteredCustomers"
+        :stay-customer-id="stayCustomerId"
+        :is-stay-submitting="isStaySubmitting"
+        :stay-submit-error="staySubmitError"
+        @delete="handleDeleteCustomer"
+        @edit="startEdit"
+        @register-stay="registerStay"
+        @show-history="showStayHistory"
+        @cancel-stay="cancelStay"
+        @add-stay="handleStaySubmit"/>
+      <p v-if="customerDeleteError">{{ customerDeleteError }}</p>
+      <p v-if="stayFetchError"> {{ stayFetchError }}</p>
+
+
+    
+      <h2>新規顧客登録</h2>
+
+        <CustomerForm 
+        :new-name="newName"
+        :new-phone="newPhone"
+        :editing-id="editingId"
+        :name-error="nameError"
+        :phone-error="phoneError"
+        :smoking-preference="smokingPreference"
+        :notes="notes"
+        :is-submitting="isSubmitting"
+        :first-stay-date="firstStayDate"
+        @update-name="newName=$event"
+        @update-phone="newPhone=$event"
+        @update-first-stay-date="firstStayDate=$event"
+        @submit="handleSubmit"
+        @clear-name-error="nameError=''"
+        @clear-phone-error="phoneError=''"
+        @cancel="resetForm"
+        @update-smoking-preference="smokingPreference = $event"
+        @update-notes="notes = $event"
+        
+        />
+
     </div>
-   
-    <CustomerList v-else
-      :filtered-customers="filteredCustomers"
-      :stay-customer-id="stayCustomerId"
-      :is-stay-submitting="isStaySubmitting"
-      :stay-submit-error="staySubmitError"
-      @delete="handleDeleteCustomer"
-      @edit="startEdit"
-      @register-stay="registerStay"
-      @show-history="showStayHistory"
-      @cancel-stay="cancelStay"
-      @add-stay="handleStaySubmit"/>
-    <p v-if="customerDeleteError">{{ customerDeleteError }}</p>
-    <p v-if="stayFetchError"> {{ stayFetchError }}</p>
-
-
-  
-    <h2>新規顧客登録</h2>
-
-    <CustomerForm 
-    :new-name="newName"
-    :new-phone="newPhone"
-    :editing-id="editingId"
-    :name-error="nameError"
-    :phone-error="phoneError"
-    :smoking-preference="smokingPreference"
-    :notes="notes"
-    :is-submitting="isSubmitting"
-    :first-stay-date="firstStayDate"
-    @update-name="newName=$event"
-    @update-phone="newPhone=$event"
-    @update-first-stay-date="firstStayDate=$event;console.log('更新後のfirstStayDate:', firstStayDate)"
-    @submit="handleSubmit"
-    @clear-name-error="nameError=''"
-    @clear-phone-error="phoneError=''"
-    @cancel="resetForm"
-    @update-smoking-preference="smokingPreference = $event"
-    @update-notes="notes = $event"
-    
-    />
-  </main>
-  <p v-if="submitError">{{ submitError }}</p>
+    </main>
+    <p v-if="submitError">{{ submitError }}</p>  
 </template>
 
 
