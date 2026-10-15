@@ -57,9 +57,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173",
-    "https://hotel-customer-management.onrender.com",
-    "https://hotel-customer-management-staging.onrender.com",],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:8080",  # Nginxで配信するローカルテスト用
+        "https://hotel-customer-management.onrender.com",
+        "https://hotel-customer-management-staging.onrender.com",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
