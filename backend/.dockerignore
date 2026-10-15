@@ -1,0 +1,22 @@
+
+# 環境変数・秘密情報
+.env
+.env.*
+!.env.example
+
+# Python仮想環境
+venv/
+.venv/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Git関連
+.git/
+.gitignore
+
+# OS・エディタ関連
+.DS_Store
+.vscode/
