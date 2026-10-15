@@ -1,0 +1,26 @@
+
+# Node.js
+node_modules/
+dist/
+coverage/
+
+# 環境変数・秘密情報
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Git
+.git/
+
+# OS・エディタ
+.DS_Store
+.vscode/
+
+# Dockerで不要なローカル設定
+*.log
