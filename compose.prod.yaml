@@ -1,0 +1,9 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "127.0.0.1:8002:8000"
+    environment:
+      APP_ENV: staging
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
