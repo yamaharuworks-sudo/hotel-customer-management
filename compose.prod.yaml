@@ -17,5 +17,5 @@ services:
     expose:
       - "8000"
     environment:
-      APP_ENV: staging
+      APP_ENV: ${APP_ENV:?APP_ENV is required}
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
