@@ -76,6 +76,7 @@ def verify_request_origin(request: Request):
     if app_env == "production":
         allowed_origins = {
             "https://hotel-customer-management.onrender.com",
+            "https://hotel-app-prod.duckdns.org",
         }
     elif app_env == "staging":
         allowed_origins = {
