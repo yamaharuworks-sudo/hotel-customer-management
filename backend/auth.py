@@ -73,8 +73,6 @@ def verify_request_origin(request: Request):
     origin = request.headers.get("origin")
     app_env = os.getenv("APP_ENV", "development")
 
-    is_production = os.getenv("APP_ENV") == "production"
-
     if app_env == "production":
         allowed_origins = {
             "https://hotel-customer-management.onrender.com",
@@ -83,6 +81,8 @@ def verify_request_origin(request: Request):
         allowed_origins = {
             "https://hotel-customer-management-staging.onrender.com",
             "http://localhost:5173",
+            "http://localhost:8080",  # Nginxで配信するローカルテスト用
+            "http://cpjt84zuer2u8yuqx6ki3emy.162.43.5.194.sslip.io/", #Coolify frontend staging
             "http://127.0.0.1:5173",
             "http://127.0.0.1:8000",
             "http://localhost:8000",
