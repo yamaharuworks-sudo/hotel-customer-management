@@ -13,6 +13,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
+from urllib.parse import urlparse
 
 
 class CustomerCreate(BaseModel):
@@ -384,3 +385,27 @@ def get_me(admin: dict = Depends(get_current_admin)):
         "id": admin["id"],
         "email": admin["email"]
     }
+
+
+# ヘルスチェック
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+def readiness_check():
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+
+                result = cursor.fetchone()
+
+        return {"status": "ready"}
+
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable"
+        )
