@@ -24,3 +24,8 @@ jobs:
 
       - name: Check Python syntax
         run: python -m compileall -q backend
+        
+      - name: Run pytest
+        run: |
+          cd backend
+          python -m pytest tests/ -v

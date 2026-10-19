@@ -16,3 +16,5 @@ python-dotenv==1.2.1
 psycopg[binary]==3.2.13
 argon2-cffi==25.1.0
 slowapi==0.1.10
+pytest==8.4.2
+httpx==0.28.1
