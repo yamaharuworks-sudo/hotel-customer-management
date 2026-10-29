@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql://hotel:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/hotel_db
+    
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image:  postgres:17
+    environment:
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: hotel_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotel -d hotel_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
