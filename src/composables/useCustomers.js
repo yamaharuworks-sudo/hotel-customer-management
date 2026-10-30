@@ -27,7 +27,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
                         lastStayedDate: customer.last_stayed_date
                     }));
                 } else {
-                    fetchCustomerError.value = "顧客一覧を取得できませんでした";
+                    if (response.status === 401) {
+                        fetchCustomerError.value = "ログインの有効期限が切れました。再度ログインしてください";
+                    } else {
+                        fetchCustomerError.value = "顧客一覧を取得できませんでした";
+                    }
                 }
 
             } catch (error) {
